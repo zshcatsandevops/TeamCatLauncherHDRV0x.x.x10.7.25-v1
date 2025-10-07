@@ -87,23 +87,17 @@ class CatLauncherMCv2025(tk.Tk):
         """Setup SSL context with multiple fallback options for certificate verification."""
         try:
             self.ssl_context = ssl.create_default_context()
-            print("✓ Using system SSL certificates")
         except Exception as e:
-            print(f"System SSL context failed: {e}")
             try:
                 self.ssl_context = ssl.create_default_context(cafile=certifi.where())
-                print("✓ Using certifi SSL certificates")
             except Exception as e:
-                print(f"Certifi SSL context failed: {e}")
                 self.ssl_context = ssl._create_unverified_context()
-                print("⚠️ Using unverified SSL context (INSECURE)")
 
     def safe_urlopen(self, url):
         """Safely open URL with SSL context handling."""
         try:
             return urllib.request.urlopen(url, context=self.ssl_context)
         except Exception as e:
-            print(f"URL open failed: {e}")
             try:
                 return urllib.request.urlopen(url)
             except Exception as final_e:
@@ -463,18 +457,14 @@ class CatLauncherMCv2025(tk.Tk):
                         self.version_categories["Old Alpha"].append(v["id"])
                 
                 self.update_version_list()
-                print("✓ Version manifest loaded successfully")
+                
                 
         except Exception as e:
-            print(f"Error loading version manifest: {e}")
             try:
-                print("Retrying with unverified SSL context...")
                 temp_context = ssl._create_unverified_context()
                 with urllib.request.urlopen(VERSION_MANIFEST_URL, context=temp_context) as url:
                     manifest = json.loads(url.read().decode())
-                    print("✓ Version manifest loaded with unverified context")
             except Exception as final_e:
-                print(f"Final attempt failed: {final_e}")
                 messagebox.showerror("Error", "Failed to load version manifest. Check your internet connection and SSL certificates.")
 
     def is_java_installed(self, required_version="21"):
@@ -488,7 +478,6 @@ class CatLauncherMCv2025(tk.Tk):
                 return major_version >= int(required_version)
             return False
         except subprocess.TimeoutExpired:
-            print("Java version check timed out")
             return False
         except Exception:
             return False
@@ -496,10 +485,8 @@ class CatLauncherMCv2025(tk.Tk):
     def install_java_if_needed(self):
         """Install OpenJDK 21 if a compatible Java version is not found."""
         if self.is_java_installed():
-            print("✓ Java is already installed")
             return True
         
-        print("Installing OpenJDK 21...")
         system = platform.system()
         if system == "Windows":
             java_url = "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jdk_x64_windows_hotspot_21.0.5_11.zip"
@@ -521,14 +508,12 @@ class CatLauncherMCv2025(tk.Tk):
             with open(archive_path, 'wb') as f:
                 f.write(response.read())
         except Exception as e:
-            print(f"Failed to download Java: {e}")
             try:
                 temp_context = ssl._create_unverified_context()
                 response = urllib.request.urlopen(java_url, context=temp_context)
                 with open(archive_path, 'wb') as f:
                     f.write(response.read())
             except Exception as final_e:
-                print(f"Final Java download attempt failed: {final_e}")
                 messagebox.showerror("Error", "Failed to download Java 21. Please check your internet connection or install Java manually.")
                 return False
 
@@ -547,10 +532,8 @@ class CatLauncherMCv2025(tk.Tk):
                         os.chmod(file_path, 0o755)
             
             os.remove(archive_path)
-            print("✓ Java 21 installed locally")
             return True
         except Exception as e:
-            print(f"Failed to extract Java: {e}")
             messagebox.showerror("Error", f"Failed to extract Java: {e}")
             return False
 
@@ -587,11 +570,9 @@ class CatLauncherMCv2025(tk.Tk):
                 f.write(response.read())
             
             if expected_sha1 and not self.verify_file(file_path, expected_sha1):
-                print(f"Checksum mismatch for {file_path}")
                 return False
             return True
         except Exception as e:
-            print(f"Download failed: {e}, retrying with unverified context...")
             try:
                 temp_context = ssl._create_unverified_context()
                 response = urllib.request.urlopen(url, context=temp_context)
@@ -599,16 +580,13 @@ class CatLauncherMCv2025(tk.Tk):
                     f.write(response.read())
                 
                 if expected_sha1 and not self.verify_file(file_path, expected_sha1):
-                    print(f"Checksum mismatch for {file_path}")
                     return False
                 return True
             except Exception as final_e:
-                print(f"Final download attempt failed: {final_e}")
                 return False
 
     def download_version_files(self, version_id, version_url):
         """Download the version JSON, JAR, libraries, and natives with checksum verification."""
-        print(f"⬇️ Downloading version files for {version_id}...")
         version_dir = os.path.join(VERSIONS_DIR, version_id)
         os.makedirs(version_dir, exist_ok=True)
 
@@ -619,7 +597,6 @@ class CatLauncherMCv2025(tk.Tk):
                 with open(version_json_path, "w") as f:
                     json.dump(data, f, indent=2)
         except Exception as e:
-            print(f"Failed to download version JSON: {e}")
             try:
                 temp_context = ssl._create_unverified_context()
                 with urllib.request.urlopen(version_url, context=temp_context) as url:
@@ -627,7 +604,6 @@ class CatLauncherMCv2025(tk.Tk):
                     with open(version_json_path, "w") as f:
                         json.dump(data, f, indent=2)
             except Exception as final_e:
-                print(f"Final JSON download attempt failed: {final_e}")
                 messagebox.showerror("Error", f"Failed to download version {version_id} JSON.")
                 return
 
@@ -641,7 +617,6 @@ class CatLauncherMCv2025(tk.Tk):
                     messagebox.showerror("Error", f"Failed to download or verify version {version_id} JAR.")
                     return
         except KeyError as e:
-            print(f"Missing client JAR info in JSON: {e}")
             messagebox.showerror("Error", f"Version {version_id} is missing client JAR information.")
             return
 
@@ -663,7 +638,7 @@ class CatLauncherMCv2025(tk.Tk):
                     expected_sha1 = lib["downloads"]["artifact"]["sha1"]
                     if not os.path.exists(lib_path) or not self.verify_file(lib_path, expected_sha1):
                         if not self.safe_download_file(lib_url, lib_path, expected_sha1):
-                            print(f"Failed to download library {lib.get('name', 'unknown')}")
+                            pass
 
                 if "natives" in lib and current_os in lib["natives"]:
                     classifier = lib["natives"][current_os]
@@ -678,9 +653,8 @@ class CatLauncherMCv2025(tk.Tk):
                                         zip_ref.extractall(natives_dir)
                                     os.remove(native_path)
                                 except Exception as e:
-                                    print(f"Failed to extract native {lib.get('name', 'unknown')}: {e}")
+                                    pass
 
-        print("✅ Download complete!")
 
     def modify_options_txt(self, target_fps=60):
         """Modify options.txt to set maxFps and disable vsync."""
@@ -694,7 +668,7 @@ class CatLauncherMCv2025(tk.Tk):
                         if len(parts) == 2:
                             options[parts[0]] = parts[1]
             except Exception as e:
-                print(f"Warning: Could not read options.txt: {e}")
+                pass
 
         options['maxFps'] = str(target_fps)
         options['enableVsync'] = 'false'
@@ -703,9 +677,8 @@ class CatLauncherMCv2025(tk.Tk):
             with open(options_path, "w") as f:
                 for key, value in options.items():
                     f.write(f"{key}:{value}\n")
-            print(f"⚙️ Set maxFps to {target_fps} and disabled vsync in options.txt.")
         except Exception as e:
-            print(f"Warning: Could not write options.txt: {e}")
+            pass
 
     def is_library_allowed(self, lib, current_os):
         """Check if a library is allowed on the current OS based on its rules."""
@@ -753,7 +726,6 @@ class CatLauncherMCv2025(tk.Tk):
             with open(json_path, "r") as f:
                 version_data = json.load(f)
         except Exception as e:
-            print(f"Failed to read version JSON: {e}")
             messagebox.showerror("Error", f"Cannot read version {version} JSON.")
             return []
 
@@ -876,19 +848,11 @@ class CatLauncherMCv2025(tk.Tk):
         if not launch_cmd:
             return
 
-        print("🚀 Launching Minecraft with:", " ".join(launch_cmd))
         try:
             process = subprocess.Popen(launch_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            print("✓ Minecraft launched successfully!")
         except Exception as e:
-            print(f"Failed to launch Minecraft: {e}")
             messagebox.showerror("Error", f"Failed to launch Minecraft: {e}")
 
 if __name__ == "__main__":
-    print("CATLAUNCHER 1.0 CORE — UST-POSIX 64-bit")
-    print("Build CORE 1.0 • UST compliant (64-bit time_t, Y2K38-safe)")
-    print("For best SSL performance, run: pip install pip-system-certs")
-    print("Starting CatLauncher...")
-    
     app = CatLauncherMCv2025()
     app.mainloop()
